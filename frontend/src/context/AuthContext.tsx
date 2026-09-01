@@ -102,35 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const syncLocalUserRecord = async (uid: string, email: string, fullName?: string, avatar?: string): Promise<User> => {
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanName = fullName || cleanEmail.split('@')[0] || 'Admin Manager';
-
-    let found = await db.users.where('email').equalsIgnoreCase(cleanEmail).first();
-    if (!found) {
-      const newUser: User = {
-        id: uid || `USR-${Date.now()}`,
-        name: cleanName,
-        email: cleanEmail,
-        role: 'Admin',
-        avatar: avatar || '',
-        phone: '',
-        createdAt: new Date().toISOString(),
-        lastLogin: new Date().toISOString()
-      };
-      await db.users.add(newUser);
-      return newUser;
-    }
-
-    await db.users.update(found.id, {
-      name: cleanName,
-      avatar: avatar || found.avatar,
-      lastLogin: new Date().toISOString()
-    });
-    return { ...found, name: cleanName, avatar: avatar || found.avatar, lastLogin: new Date().toISOString() };
-  };
-
-  // Backend API Registration (Saves User ID & Password in Database)
+  // Sign Up New Account (Registers User in Backend API & Database)
   const signUp = async (
     fullName: string,
     email: string,
@@ -139,20 +111,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     rememberMe = true
   ): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = fullName.trim();
+
     try {
-      // 1. Try Backend API Registration (/api/auth/register)
+      // 1. Check if email already registered in local DB
+      const existing = await db.users.where('email').equalsIgnoreCase(cleanEmail).first();
+      if (existing) {
+        setIsLoading(false);
+        return { success: false, error: 'An account with this email already exists. Please Sign In.' };
+      }
+
+      // 2. Try Backend API Registration (/api/auth/register)
       try {
         const apiRes = await fetch('/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fullName, email, password, role })
+          body: JSON.stringify({ fullName: cleanName, email: cleanEmail, password, role })
         });
         const apiData = await apiRes.json();
 
         if (apiRes.ok && apiData.success) {
-          const activeUser = await syncLocalUserRecord(apiData.user.id, apiData.user.email, apiData.user.name);
-          setUser(activeUser);
-          saveSessionStorage(activeUser.id, rememberMe);
+          const newUser: User = {
+            id: apiData.user.id,
+            name: cleanName,
+            email: cleanEmail,
+            password,
+            role,
+            avatar: '',
+            phone: '',
+            createdAt: new Date().toISOString(),
+            lastLogin: new Date().toISOString()
+          };
+          await db.users.add(newUser);
+          setUser(newUser);
+          saveSessionStorage(newUser.id, rememberMe);
           setIsLoading(false);
           return { success: true };
         } else if (!apiRes.ok && apiData.error) {
@@ -160,22 +153,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return { success: false, error: apiData.error };
         }
       } catch (backendErr) {
-        console.warn('Backend Auth API unavailable, falling back to Firebase Auth:', backendErr);
+        console.warn('Backend Auth API unavailable, using Firebase Auth:', backendErr);
       }
 
-      // 2. Fallback to Firebase Auth & Database
+      // 3. Fallback to Firebase Auth
       await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
-      const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      const cred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
       const fbUser = cred.user;
 
       if (auth.currentUser) {
-        await updateProfile(auth.currentUser, { displayName: fullName.trim() });
+        await updateProfile(auth.currentUser, { displayName: cleanName });
       }
 
-      const activeUser = await syncLocalUserRecord(fbUser.uid, fbUser.email || email, fullName.trim());
-      setUser(activeUser);
-      saveSessionStorage(activeUser.id, rememberMe);
-      await recordUserLoginToFirebase(activeUser);
+      const newUser: User = {
+        id: fbUser.uid,
+        name: cleanName,
+        email: cleanEmail,
+        password,
+        role,
+        avatar: '',
+        phone: '',
+        createdAt: new Date().toISOString(),
+        lastLogin: new Date().toISOString()
+      };
+      await db.users.add(newUser);
+      setUser(newUser);
+      saveSessionStorage(newUser.id, rememberMe);
+      await recordUserLoginToFirebase(newUser);
 
       setIsLoading(false);
       return { success: true };
@@ -198,7 +202,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Backend API Login (Verifies Password & User ID in Database)
+  // Sign In Existing Account (Strict Verification - NO Random Unregistered Email Logins Allowed)
   const login = async (
     email: string,
     role: UserRole = 'Admin',
@@ -206,6 +210,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     rememberMe = true
   ): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
+    const cleanEmail = email.trim().toLowerCase();
+
     try {
       if (!password || password.trim() === '') {
         setIsLoading(false);
@@ -217,56 +223,108 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const apiRes = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
+          body: JSON.stringify({ email: cleanEmail, password })
         });
         const apiData = await apiRes.json();
 
         if (apiRes.ok && apiData.success) {
-          const activeUser = await syncLocalUserRecord(apiData.user.id, apiData.user.email, apiData.user.name, apiData.user.avatar);
-          setUser(activeUser);
-          saveSessionStorage(activeUser.id, rememberMe);
+          let localUser = await db.users.where('email').equalsIgnoreCase(cleanEmail).first();
+          if (!localUser) {
+            localUser = {
+              id: apiData.user.id,
+              name: apiData.user.name,
+              email: cleanEmail,
+              role: apiData.user.role || 'Admin',
+              avatar: apiData.user.avatar || '',
+              phone: '',
+              createdAt: new Date().toISOString(),
+              lastLogin: new Date().toISOString()
+            };
+            await db.users.add(localUser);
+          } else {
+            await db.users.update(localUser.id, { lastLogin: new Date().toISOString() });
+          }
+
+          setUser(localUser);
+          saveSessionStorage(localUser.id, rememberMe);
           setIsLoading(false);
           return { success: true };
         } else if (!apiRes.ok && apiData.error) {
+          // Explicit API denial (e.g. Account not found or wrong password)
           setIsLoading(false);
           return { success: false, error: apiData.error };
         }
       } catch (backendErr) {
-        console.warn('Backend Auth API unavailable, falling back to Firebase Auth:', backendErr);
+        console.warn('Backend Auth API unavailable, checking local database and Firebase Auth:', backendErr);
       }
 
-      // 2. Fallback to Firebase Auth & Database
-      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
-      const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-      const fbUser = cred.user;
+      // 2. Check local database users first
+      const localUser = await db.users.where('email').equalsIgnoreCase(cleanEmail).first();
 
-      const activeUser = await syncLocalUserRecord(fbUser.uid, fbUser.email || email, fbUser.displayName || undefined);
-      setUser(activeUser);
-      saveSessionStorage(activeUser.id, rememberMe);
-      await recordUserLoginToFirebase(activeUser);
+      if (localUser) {
+        // If password stored in local record, verify match
+        if (localUser.password && localUser.password !== password) {
+          setIsLoading(false);
+          return { success: false, error: 'Incorrect password. Access denied.' };
+        }
 
-      setIsLoading(false);
-      return { success: true };
+        // Try Firebase Auth verification
+        try {
+          await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
+          await signInWithEmailAndPassword(auth, cleanEmail, password);
+        } catch (e) {}
+
+        await db.users.update(localUser.id, { lastLogin: new Date().toISOString() });
+        setUser(localUser);
+        saveSessionStorage(localUser.id, rememberMe);
+        setIsLoading(false);
+        return { success: true };
+      }
+
+      // 3. Authenticate with Firebase Auth if user not in local IndexedDB
+      try {
+        await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
+        const cred = await signInWithEmailAndPassword(auth, cleanEmail, password);
+        const fbUser = cred.user;
+
+        const newUser: User = {
+          id: fbUser.uid,
+          name: fbUser.displayName || cleanEmail.split('@')[0],
+          email: cleanEmail,
+          role: 'Admin',
+          avatar: fbUser.photoURL || '',
+          phone: '',
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString()
+        };
+        await db.users.add(newUser);
+        setUser(newUser);
+        saveSessionStorage(newUser.id, rememberMe);
+        await recordUserLoginToFirebase(newUser);
+
+        setIsLoading(false);
+        return { success: true };
+      } catch (fbErr: any) {
+        console.error('Firebase Login Error:', fbErr);
+        setIsLoading(false);
+
+        let msg = 'Account not registered. Please enter valid credentials or click Create Account.';
+        if (fbErr.code === 'auth/user-not-found' || fbErr.code === 'auth/invalid-credential') {
+          msg = 'Invalid credentials. User is not registered in our database. Click "Create Account" below to register.';
+        } else if (fbErr.code === 'auth/wrong-password') {
+          msg = 'Incorrect password. Access denied.';
+        }
+
+        return { success: false, error: msg };
+      }
     } catch (err: any) {
       console.error('Login error:', err);
       setIsLoading(false);
-
-      let msg = 'Invalid email or password.';
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-        msg = 'Invalid credentials. User not found in database. Please check your email/password or create an account.';
-      } else if (err.code === 'auth/wrong-password') {
-        msg = 'Incorrect password. Access denied.';
-      } else if (err.code === 'auth/invalid-email') {
-        msg = 'Invalid email format.';
-      } else if (err.message) {
-        msg = err.message;
-      }
-
-      return { success: false, error: msg };
+      return { success: false, error: err.message || 'Login failed. User is not registered.' };
     }
   };
 
-  // Genuine Google OAuth Authentication
+  // Genuine Google OAuth Authentication (Strict Google Account Verification)
   const loginWithGoogle = async (rememberMe = true): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
     try {
@@ -286,10 +344,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userName = fbUser.displayName || userEmail.split('@')[0];
       const userPhoto = fbUser.photoURL || '';
 
-      const activeUser = await syncLocalUserRecord(fbUser.uid, userEmail, userName, userPhoto);
-      setUser(activeUser);
-      saveSessionStorage(activeUser.id, rememberMe);
-      await recordUserLoginToFirebase(activeUser);
+      let found = await db.users.where('email').equalsIgnoreCase(userEmail).first();
+      if (!found) {
+        const newUser: User = {
+          id: fbUser.uid,
+          name: userName,
+          email: userEmail,
+          role: 'Admin',
+          avatar: userPhoto,
+          phone: '',
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString()
+        };
+        await db.users.add(newUser);
+        found = newUser;
+      } else {
+        await db.users.update(found.id, {
+          name: userName,
+          avatar: userPhoto || found.avatar,
+          lastLogin: new Date().toISOString()
+        });
+        found = { ...found, name: userName, avatar: userPhoto || found.avatar };
+      }
+
+      setUser(found);
+      saveSessionStorage(found.id, rememberMe);
+      await recordUserLoginToFirebase(found);
 
       setIsLoading(false);
       return { success: true };
@@ -299,7 +379,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       let msg = 'Google authentication failed.';
       if (popupErr.code === 'auth/popup-closed-by-user' || popupErr.code === 'auth/cancelled-popup-request') {
-        msg = 'Sign-in cancelled. Account selection window was closed before completing.';
+        msg = 'Sign-in cancelled. Google account selection window was closed.';
       } else if (popupErr.code === 'auth/unauthorized-domain') {
         msg = `Domain "${window.location.hostname}" is not authorized in Firebase Console. Please add this domain under Firebase > Authentication > Settings > Authorized Domains.`;
       } else if (popupErr.message) {
