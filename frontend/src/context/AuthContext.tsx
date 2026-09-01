@@ -74,7 +74,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(found);
             localStorage.setItem('finpulse_user_id', found.id);
           } else {
-            // Check local vs session persistence storage only if authenticated locally
             const savedUserId = localStorage.getItem('finpulse_user_id') || sessionStorage.getItem('finpulse_user_id');
             if (savedUserId) {
               const foundUser = await db.users.get(savedUserId);
@@ -103,7 +102,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Sync authenticated user record to local Dexie IndexedDB
   const syncLocalUserRecord = async (uid: string, email: string, fullName?: string, avatar?: string): Promise<User> => {
     const cleanEmail = email.trim().toLowerCase();
     const cleanName = fullName || cleanEmail.split('@')[0] || 'Admin Manager';
@@ -132,7 +130,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { ...found, name: cleanName, avatar: avatar || found.avatar, lastLogin: new Date().toISOString() };
   };
 
-  // Real Email/Password Registration via Firebase Auth
+  // Backend API Registration (Saves User ID & Password in Database)
   const signUp = async (
     fullName: string,
     email: string,
@@ -142,8 +140,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
     try {
-      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
+      // 1. Try Backend API Registration (/api/auth/register)
+      try {
+        const apiRes = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fullName, email, password, role })
+        });
+        const apiData = await apiRes.json();
 
+        if (apiRes.ok && apiData.success) {
+          const activeUser = await syncLocalUserRecord(apiData.user.id, apiData.user.email, apiData.user.name);
+          setUser(activeUser);
+          saveSessionStorage(activeUser.id, rememberMe);
+          setIsLoading(false);
+          return { success: true };
+        } else if (!apiRes.ok && apiData.error) {
+          setIsLoading(false);
+          return { success: false, error: apiData.error };
+        }
+      } catch (backendErr) {
+        console.warn('Backend Auth API unavailable, falling back to Firebase Auth:', backendErr);
+      }
+
+      // 2. Fallback to Firebase Auth & Database
+      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
       const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
       const fbUser = cred.user;
 
@@ -164,7 +185,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       let msg = 'Could not create account.';
       if (err.code === 'auth/email-already-in-use') {
-        msg = 'An account with this email already exists. Please Sign In.';
+        msg = 'An account with this email already exists in database. Please Sign In.';
       } else if (err.code === 'auth/weak-password') {
         msg = 'Password should be at least 6 characters.';
       } else if (err.code === 'auth/invalid-email') {
@@ -177,7 +198,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Real Email/Password Authentication via Firebase Auth
+  // Backend API Login (Verifies Password & User ID in Database)
   const login = async (
     email: string,
     role: UserRole = 'Admin',
@@ -191,8 +212,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: 'Please enter your password.' };
       }
 
-      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
+      // 1. Try Backend API Authentication (/api/auth/login)
+      try {
+        const apiRes = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const apiData = await apiRes.json();
 
+        if (apiRes.ok && apiData.success) {
+          const activeUser = await syncLocalUserRecord(apiData.user.id, apiData.user.email, apiData.user.name, apiData.user.avatar);
+          setUser(activeUser);
+          saveSessionStorage(activeUser.id, rememberMe);
+          setIsLoading(false);
+          return { success: true };
+        } else if (!apiRes.ok && apiData.error) {
+          setIsLoading(false);
+          return { success: false, error: apiData.error };
+        }
+      } catch (backendErr) {
+        console.warn('Backend Auth API unavailable, falling back to Firebase Auth:', backendErr);
+      }
+
+      // 2. Fallback to Firebase Auth & Database
+      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
       const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
       const fbUser = cred.user;
 
@@ -209,9 +253,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       let msg = 'Invalid email or password.';
       if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-        msg = 'Invalid credentials. Please check your email/password or create a new account.';
+        msg = 'Invalid credentials. User not found in database. Please check your email/password or create an account.';
       } else if (err.code === 'auth/wrong-password') {
-        msg = 'Incorrect password. Please try again.';
+        msg = 'Incorrect password. Access denied.';
       } else if (err.code === 'auth/invalid-email') {
         msg = 'Invalid email format.';
       } else if (err.message) {
@@ -222,13 +266,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Genuine Google OAuth Authentication (Strict Verification - No Dummy Fallbacks)
+  // Genuine Google OAuth Authentication
   const loginWithGoogle = async (rememberMe = true): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
     try {
       await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
 
-      // Force Google Account Chooser screen every single time
       googleProvider.setCustomParameters({ prompt: 'select_account' });
 
       const result = await signInWithPopup(auth, googleProvider);
