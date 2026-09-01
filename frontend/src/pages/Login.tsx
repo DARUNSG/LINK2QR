@@ -77,9 +77,9 @@ export const Login: React.FC = () => {
     setIsGoogleSubmitting(false);
 
     if (res?.success) {
-      showToast('Google Sign-In Successful', 'Authenticated as Admin & synced to Firebase.', 'success');
+      showToast('Google Sign-In Successful', 'Authenticated via Google OAuth.', 'success');
     } else if (res?.error) {
-      showToast('Google Sign-In', res.error, 'info');
+      showToast('Authentication Failed', res.error, 'error');
     }
   };
 
