@@ -223,12 +223,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: true };
       } catch (popupErr: any) {
         console.warn('Google Popup Notice:', popupErr.code, popupErr.message);
+
         if (popupErr.code === 'auth/popup-closed-by-user' || popupErr.code === 'auth/cancelled-popup-request') {
           setIsLoading(false);
           return { success: false, error: 'Sign-in cancelled. Account selection window was closed.' };
         }
 
-        // Fallback for unauthorized domains on Vercel before domain is added to Firebase Console
+        if (popupErr.code === 'auth/unauthorized-domain') {
+          console.warn('Firebase Unauthorized Domain:', window.location.hostname);
+          // Auto fallback to local admin session if domain is not yet authorized in Firebase Console
+          const activeUser = await getOrCreateLocalUser('admin@matrixfinance.in', 'Matrix Admin Manager');
+          setUser(activeUser);
+          saveSessionStorage(activeUser.id, rememberMe);
+          await recordUserLoginToFirebase(activeUser);
+          setIsLoading(false);
+          return { success: true };
+        }
+
         const activeUser = await getOrCreateLocalUser('admin@matrixfinance.in', 'Matrix Admin Manager');
         setUser(activeUser);
         saveSessionStorage(activeUser.id, rememberMe);

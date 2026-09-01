@@ -137,15 +137,10 @@ export const Login: React.FC = () => {
             </div>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-slate-800/80 space-y-3">
-            <div className="flex items-center gap-3 text-xs text-slate-300">
-              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Firebase Realtime Database Integration</span>
-            </div>
-            <div className="flex items-center gap-3 text-xs text-slate-300">
-              <Sparkles className="w-4 h-4 text-indigo-400 shrink-0" />
-              <span>Google & Firebase Admin Security</span>
-            </div>
+          <div className="mt-8 pt-6 border-t border-slate-800/80">
+            <p className="text-base font-extrabold text-white tracking-wide">
+              SENTHI KUMAR.M
+            </p>
           </div>
         </div>
 
