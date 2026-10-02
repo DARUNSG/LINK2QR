@@ -1,0 +1,18 @@
+{
+  "short_name": "ClassMate PWA",
+  "name": "Student Timetable & Attendance Reminder",
+  "icons": [
+    {
+      "src": "/logo.jpg",
+      "type": "image/jpeg",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#DDD0C8",
+  "theme_color": "#323232",
+  "display": "standalone",
+  "orientation": "portrait",
+  "description": "Smart student timetable manager, class start notifications, and 80% attendance bunk calculator."
+}

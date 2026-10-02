@@ -1,234 +1,322 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Sidebar, NavTab } from './components/Sidebar';
+import React, { useState, useMemo } from 'react';
 import { Header } from './components/Header';
-import { Dashboard } from './pages/Dashboard';
-import { Customers } from './pages/Customers';
-import { CustomerProfile } from './pages/CustomerProfile';
-import { Loans } from './pages/Loans';
-import { Payments } from './pages/Payments';
-import { Reports } from './pages/Reports';
-import { NotificationsPage } from './pages/Notifications';
-import { Settings } from './pages/Settings';
-import { Login } from './pages/Login';
-import { AddCustomerModal } from './components/AddCustomerModal';
-import { RecordPaymentModal } from './components/RecordPaymentModal';
-import { GlobalSearchModal } from './components/GlobalSearchModal';
-import { NotificationDrawer } from './components/NotificationDrawer';
-import { Customer } from './types';
-import { useAuth } from './context/AuthContext';
-import { subscribeToFirebaseRealtime } from './services/firebaseService';
-import { db } from './db/database';
+import { Hero } from './components/Hero';
+import { BeginnerGuideBanner } from './components/BeginnerGuideBanner';
+import { DateSelector } from './components/DateSelector';
+import { ParticipantCard } from './components/ParticipantCard';
+import { TimezoneComparisonTable } from './components/TimezoneComparisonTable';
+import { TimezoneTimeline } from './components/TimezoneTimeline';
+import { MeetingTimeFinder } from './components/MeetingTimeFinder';
+import { SelectedMeetingTime } from './components/SelectedMeetingTime';
+import { MeetingSummary } from './components/MeetingSummary';
+import { PhilosophySection } from './components/PhilosophySection';
+import { AsymmetricalShowcase } from './components/AsymmetricalShowcase';
+import { ServiceCards } from './components/ServiceCards';
+import { PillShowcase } from './components/PillShowcase';
+import { Footer } from './components/Footer';
+import { HowItWorksModal } from './components/HowItWorksModal';
+
+import { Participant } from './types/planner';
+import { WORLD_CITIES, CityItem } from './data/cities';
+import { calculateOverlappingWorkingHours } from './utils/timezoneUtils';
+import { Plus, Users, Clock, AlertCircle } from 'lucide-react';
+import { DateTime } from 'luxon';
 
 export const App: React.FC = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  // 1. Initial State: Date (Default Today)
+  const initialDate = useMemo(() => DateTime.now().toISODate() || '2026-10-15', []);
+  const [selectedDate, setSelectedDate] = useState<string>(initialDate);
 
-  const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  // 2. Initial Participants List (Default: PARTICIPANT 1..4 with blank locations)
+  const [participants, setParticipants] = useState<Participant[]>([
+    {
+      id: 'p-1',
+      name: 'PARTICIPANT 1',
+      cityName: '',
+      countryName: '',
+      timezone: '',
+      flag: '',
+      workStart: '09:00',
+      workEnd: '18:00',
+    },
+    {
+      id: 'p-2',
+      name: 'PARTICIPANT 2',
+      cityName: '',
+      countryName: '',
+      timezone: '',
+      flag: '',
+      workStart: '09:00',
+      workEnd: '18:00',
+    },
+    {
+      id: 'p-3',
+      name: 'PARTICIPANT 3',
+      cityName: '',
+      countryName: '',
+      timezone: '',
+      flag: '',
+      workStart: '09:00',
+      workEnd: '18:00',
+    },
+    {
+      id: 'p-4',
+      name: 'PARTICIPANT 4',
+      cityName: '',
+      countryName: '',
+      timezone: '',
+      flag: '',
+      workStart: '09:00',
+      workEnd: '18:00',
+    },
+  ]);
 
-  // Modals
-  const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
-  const [isRecordPaymentOpen, setIsRecordPaymentOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [recordPaymentLoanId, setRecordPaymentLoanId] = useState<string | undefined>(undefined);
+  // 3. Selected Meeting Time UTC (e.g. "14:00")
+  const [selectedTimeUtc, setSelectedTimeUtc] = useState<string>('14:00');
 
-  // Sync Firebase Realtime DB to Dexie state
-  React.useEffect(() => {
-    const unsubscribe = subscribeToFirebaseRealtime(async (data) => {
-      try {
-        if (data.customers && data.customers.length > 0) {
-          await db.customers.bulkPut(data.customers);
-        }
-        if (data.loans && data.loans.length > 0) {
-          await db.loans.bulkPut(data.loans);
-        }
-        if (data.payments && data.payments.length > 0) {
-          await db.payments.bulkPut(data.payments);
-        }
-      } catch (err) {
-        console.warn('Realtime sync error:', err);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
+  // 4. Modal State
+  const [isHowItWorksOpen, setIsHowItWorksOpen] = useState<boolean>(false);
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[#07090e] text-white flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm font-semibold text-slate-400">Loading Matrix Finance Engine...</p>
-        </div>
-      </div>
-    );
-  }
+  // Auto-adjust selected time to first overlap window if available
+  const overlapWindows = useMemo(() => {
+    return calculateOverlappingWorkingHours(selectedDate, participants);
+  }, [selectedDate, participants]);
 
-  if (!isAuthenticated) {
-    return <Login />;
-  }
+  // 1-Click Beginner Demo Preset (Fills sample locations for demo)
+  const handleLoadDemo = () => {
+    setParticipants([
+      {
+        id: 'p-1',
+        name: 'PARTICIPANT 1',
+        cityName: 'Chennai',
+        countryName: 'India',
+        timezone: 'Asia/Kolkata',
+        flag: '🇮🇳',
+        workStart: '09:00',
+        workEnd: '18:00',
+      },
+      {
+        id: 'p-2',
+        name: 'PARTICIPANT 2',
+        cityName: 'London',
+        countryName: 'United Kingdom',
+        timezone: 'Europe/London',
+        flag: '🇬🇧',
+        workStart: '09:00',
+        workEnd: '18:00',
+      },
+      {
+        id: 'p-3',
+        name: 'PARTICIPANT 3',
+        cityName: 'New York',
+        countryName: 'USA',
+        timezone: 'America/New_York',
+        flag: '🇺🇸',
+        workStart: '09:00',
+        workEnd: '18:00',
+      },
+      {
+        id: 'p-4',
+        name: 'PARTICIPANT 4',
+        cityName: 'Tokyo',
+        countryName: 'Japan',
+        timezone: 'Asia/Tokyo',
+        flag: '🇯🇵',
+        workStart: '09:00',
+        workEnd: '18:00',
+      },
+    ]);
+    setSelectedTimeUtc('14:00');
+    scrollToPlanner();
+  };
 
-  const handleNavigate = (tab: NavTab) => {
-    setActiveTab(tab);
-    if (tab !== 'customers') {
-      setSelectedCustomer(null);
+  // Add Participant Handler (Starts blank location)
+  const handleAddParticipant = () => {
+    const newParticipant: Participant = {
+      id: `p-${Date.now()}`,
+      name: `PARTICIPANT ${participants.length + 1}`,
+      cityName: '',
+      countryName: '',
+      timezone: '',
+      flag: '',
+      workStart: '09:00',
+      workEnd: '18:00',
+    };
+
+    setParticipants([...participants, newParticipant]);
+  };
+
+  // Update Participant Handler
+  const handleUpdateParticipant = (updated: Participant) => {
+    setParticipants(participants.map(p => p.id === updated.id ? updated : p));
+  };
+
+  // Remove Participant Handler
+  const handleRemoveParticipant = (id: string) => {
+    if (participants.length <= 1) return; // Maintain at least 1 participant card
+    setParticipants(participants.filter(p => p.id !== id));
+  };
+
+  const scrollToPlanner = () => {
+    const el = document.getElementById('planner');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
-  const handleOpenRecordPaymentWithLoan = (loanId?: string) => {
-    setRecordPaymentLoanId(loanId);
-    setIsRecordPaymentOpen(true);
-  };
-
-  const pageTitles: Record<NavTab, string> = {
-    dashboard: 'Executive Dashboard',
-    customers: selectedCustomer ? `Customer Profile: ${selectedCustomer.fullName}` : 'Customer Ledger Management',
-    loans: 'Loan Portfolio Management',
-    payments: 'Payment Transaction History',
-    reports: 'Reports & Business Analytics',
-    notifications: 'System Alert Center',
-    settings: 'Business Settings & Controls'
-  };
-
   return (
-    <div className="min-h-screen bg-[#07090e] text-white flex transition-colors relative overflow-hidden font-sans">
-      {/* Interactive Background Animated Orbs & Ambient Glows */}
-      <motion.div
-        animate={{
-          scale: [1, 1.25, 1],
-          x: [0, 50, 0],
-          y: [0, -30, 0],
-          opacity: [0.2, 0.4, 0.2]
+    <div className="min-h-screen bg-[#f2f2f2] text-[#111111] font-satoshi selection:bg-[#111111] selection:text-[#f2f2f2] overflow-x-hidden">
+      
+      {/* Sticky Navigation Header */}
+      <Header
+        onNavigate={(id) => {
+          const el = document.getElementById(id);
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
         }}
-        transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
-        className="fixed -top-40 -left-40 w-[45rem] h-[45rem] bg-indigo-600/15 rounded-full blur-[140px] pointer-events-none z-0"
-      />
-      <motion.div
-        animate={{
-          scale: [1, 1.3, 1],
-          x: [0, -40, 0],
-          y: [0, 40, 0],
-          opacity: [0.15, 0.35, 0.15]
-        }}
-        transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
-        className="fixed top-1/3 -right-40 w-[40rem] h-[40rem] bg-emerald-600/10 rounded-full blur-[140px] pointer-events-none z-0"
-      />
-      <motion.div
-        animate={{
-          scale: [1, 1.2, 1],
-          x: [0, 30, 0],
-          y: [0, 50, 0],
-          opacity: [0.15, 0.3, 0.15]
-        }}
-        transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
-        className="fixed -bottom-40 left-1/3 w-[38rem] h-[38rem] bg-purple-600/15 rounded-full blur-[140px] pointer-events-none z-0"
+        onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
       />
 
-      {/* Grid Pattern Mesh */}
-      <div className="fixed inset-0 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:24px_24px] opacity-10 pointer-events-none z-0" />
+      {/* Hero Section */}
+      <Hero onStartPlanning={scrollToPlanner} />
 
-      {/* Collapsible Sidebar */}
-      <Sidebar
-        activeTab={activeTab}
-        setActiveTab={(tab) => {
-          setActiveTab(tab);
-          if (tab !== 'customers') setSelectedCustomer(null);
-        }}
-        isCollapsed={isSidebarCollapsed}
-        setIsCollapsed={setIsSidebarCollapsed}
-      />
+      {/* MAIN MEETING PLANNER CONTAINER */}
+      <main id="planner" className="max-w-7xl mx-auto px-6 py-20">
+        
+        {/* Planner Header */}
+        <div className="mb-10 border-b border-[#1e1e1e]/15 pb-8">
+          <div className="flex items-center gap-2 text-xs font-satoshi font-bold tracking-[0.2em] text-[#838282] uppercase mb-2">
+            <Clock className="w-4 h-4 text-[#111111]" />
+            <span>GLOBAL OVERLAP PLANNER</span>
+          </div>
+          <h2 className="font-clash font-bold text-4xl sm:text-5xl md:text-6xl text-[#111111] uppercase tracking-wide">
+            PLAN THE TIME
+          </h2>
+          <p className="font-satoshi text-base sm:text-lg text-[#838282] max-w-2xl mt-2 leading-relaxed">
+            Add your team members, choose their working hours, and find the perfect overlapping meeting time.
+          </p>
+        </div>
 
-      {/* Main Content Area */}
-      <div
-        className={`flex-1 flex flex-col min-w-0 transition-all duration-300 relative z-10 ${
-          isSidebarCollapsed ? 'ml-20' : 'ml-64'
-        }`}
-      >
-        {/* Sticky Header Bar */}
-        <Header
-          pageTitle={pageTitles[activeTab]}
-          onOpenSearch={() => setIsSearchOpen(true)}
-          onOpenAddCustomer={() => setIsAddCustomerOpen(true)}
-          onOpenRecordPayment={() => handleOpenRecordPaymentWithLoan()}
+        {/* 0. Beginner Quick Start Banner */}
+        <BeginnerGuideBanner
+          onLoadDemo={handleLoadDemo}
+          onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
         />
 
-        {/* View Router Body */}
-        <main className="flex-1 p-6 md:p-8 max-w-7xl w-full mx-auto relative z-10">
-          {activeTab === 'dashboard' && (
-            <Dashboard
-              onNavigate={handleNavigate}
-              onOpenRecordPayment={() => handleOpenRecordPaymentWithLoan()}
-              onOpenAddCustomer={() => setIsAddCustomerOpen(true)}
-              onSelectCustomer={(cust) => {
-                setSelectedCustomer(cust);
-                setActiveTab('customers');
-              }}
-            />
-          )}
+        {/* 1. Date Selection Component */}
+        <DateSelector
+          selectedDate={selectedDate}
+          onChangeDate={(newDate) => setSelectedDate(newDate)}
+        />
 
-          {activeTab === 'customers' &&
-            (selectedCustomer ? (
-              <CustomerProfile
-                customer={selectedCustomer}
-                onBack={() => setSelectedCustomer(null)}
-                onOpenRecordPayment={(loanId) => handleOpenRecordPaymentWithLoan(loanId)}
-              />
-            ) : (
-              <Customers
-                onSelectCustomer={(cust) => setSelectedCustomer(cust)}
-                onOpenAddCustomer={() => setIsAddCustomerOpen(true)}
+        {/* 2. Participant Management Section */}
+        <div className="mb-12">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div>
+              <div className="flex items-center gap-3">
+                <Users className="w-5 h-5 text-[#111111]" />
+                <h3 className="font-clash font-bold text-xl uppercase tracking-wide text-[#111111]">
+                  TEAM MEMBERS ({participants.length})
+                </h3>
+              </div>
+              <p className="text-xs text-[#838282] mt-0.5">
+                💡 Tip: Change working hours or cities below to see instant availability updates.
+              </p>
+            </div>
+
+            {/* + ADD PARTICIPANT Button */}
+            <button
+              onClick={handleAddParticipant}
+              className="px-5 py-2.5 text-xs font-satoshi font-bold tracking-[0.15em] uppercase flex items-center gap-2 transition-all duration-200 border border-[#111111] bg-[#111111] text-[#ffffff] hover:bg-[#1e1e1e] shadow-sm"
+            >
+              <Plus className="w-4 h-4 text-[#ffffff]" />
+              <span>+ ADD MEMBER</span>
+            </button>
+          </div>
+
+          {/* Participant Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {participants.map((p) => (
+              <ParticipantCard
+                key={p.id}
+                participant={p}
+                selectedDate={selectedDate}
+                selectedTimeUtc={selectedTimeUtc}
+                canRemove={participants.length > 1}
+                onUpdate={handleUpdateParticipant}
+                onRemove={handleRemoveParticipant}
               />
             ))}
+          </div>
 
-          {activeTab === 'loans' && (
-            <Loans
-              onOpenAddCustomer={() => setIsAddCustomerOpen(true)}
-              onOpenRecordPayment={(loanId) => handleOpenRecordPaymentWithLoan(loanId)}
-            />
+          {participants.length < 2 && (
+            <div className="mt-4 p-4 bg-red-50 border border-red-200 text-red-700 text-xs font-bold flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              <span>At least 2 team members are required to find an overlap window.</span>
+            </div>
           )}
+        </div>
 
-          {activeTab === 'payments' && (
-            <Payments
-              onOpenRecordPayment={() => handleOpenRecordPaymentWithLoan()}
-            />
-          )}
+        {/* 3. Time Zone Comparison Matrix */}
+        <TimezoneComparisonTable
+          participants={participants}
+          selectedDate={selectedDate}
+          selectedTimeUtc={selectedTimeUtc}
+        />
 
-          {activeTab === 'reports' && <Reports />}
+        {/* 4. Overlap Timeline */}
+        <TimezoneTimeline
+          participants={participants}
+          selectedDate={selectedDate}
+          selectedTimeUtc={selectedTimeUtc}
+          onSelectTimeUtc={(utcStr) => setSelectedTimeUtc(utcStr)}
+        />
 
-          {activeTab === 'notifications' && <NotificationsPage />}
+        {/* 5. Meeting Time Finder (Calculated Overlap Windows) */}
+        <MeetingTimeFinder
+          participants={participants}
+          selectedDate={selectedDate}
+          selectedTimeUtc={selectedTimeUtc}
+          onSelectTimeUtc={(utcStr) => setSelectedTimeUtc(utcStr)}
+        />
 
-          {activeTab === 'settings' && <Settings />}
-        </main>
-      </div>
+        {/* 6. Selected Meeting Time (Converted Local Clocks for All) */}
+        <SelectedMeetingTime
+          selectedTimeUtc={selectedTimeUtc}
+          selectedDate={selectedDate}
+          participants={participants}
+          onSelectTimeUtc={(utcStr) => setSelectedTimeUtc(utcStr)}
+        />
 
-      {/* Global Modals */}
-      <AddCustomerModal
-        isOpen={isAddCustomerOpen}
-        onClose={() => setIsAddCustomerOpen(false)}
+        {/* 7. Final Meeting Summary Card */}
+        <MeetingSummary
+          selectedDate={selectedDate}
+          selectedTimeUtc={selectedTimeUtc}
+          participants={participants}
+        />
+
+      </main>
+
+      {/* 8. Philosophy & Editorial Narrative Section */}
+      <PhilosophySection />
+
+      {/* 9. Asymmetrical Showcase Grid (12-column) */}
+      <AsymmetricalShowcase />
+
+      {/* 10. Bespoke Service Cards */}
+      <ServiceCards />
+
+      {/* 11. Pill-Shaped Vertical Showcase */}
+      <PillShowcase />
+
+      {/* 12. Deep Dark Editorial Footer */}
+      <Footer onOpenHowItWorks={() => setIsHowItWorksOpen(true)} />
+
+      {/* 13. Interactive How It Works Modal */}
+      <HowItWorksModal
+        isOpen={isHowItWorksOpen}
+        onClose={() => setIsHowItWorksOpen(false)}
       />
 
-      <RecordPaymentModal
-        isOpen={isRecordPaymentOpen}
-        onClose={() => {
-          setIsRecordPaymentOpen(false);
-          setRecordPaymentLoanId(undefined);
-        }}
-        preselectedLoanId={recordPaymentLoanId}
-      />
-
-      <GlobalSearchModal
-        isOpen={isSearchOpen}
-        onClose={() => setIsSearchOpen(false)}
-        onNavigate={handleNavigate}
-        onSelectCustomer={(cust) => {
-          setSelectedCustomer(cust);
-          setActiveTab('customers');
-          setIsSearchOpen(false);
-        }}
-      />
-
-      {/* Slide-out Notification Drawer */}
-      <NotificationDrawer />
     </div>
   );
 };

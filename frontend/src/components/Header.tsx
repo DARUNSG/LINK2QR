@@ -1,102 +1,76 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, DollarSign, Bell, Clock, Calendar as CalendarIcon } from 'lucide-react';
-import { useNotifications } from '../context/NotificationContext';
+import React from 'react';
+import { LiveAnalogClock } from './LiveAnalogClock';
 
 interface HeaderProps {
-  pageTitle: string;
-  onOpenSearch: () => void;
-  onOpenAddCustomer: () => void;
-  onOpenRecordPayment: () => void;
+  onNavigate: (sectionId: string) => void;
+  onOpenHowItWorks: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({
-  pageTitle,
-  onOpenAddCustomer,
-  onOpenRecordPayment
-}) => {
-  const { unreadCount, toggleDrawer } = useNotifications();
-
-  // Live Date and Time State
-  const [currentDateTime, setCurrentDateTime] = useState(new Date());
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentDateTime(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Format live time string (e.g. 10:30:45 PM)
-  const timeString = currentDateTime.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: true
-  });
-
-  // Format live date string (e.g. Mon, 31 Aug 2026)
-  const dateString = currentDateTime.toLocaleDateString([], {
-    weekday: 'short',
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  });
+export const Header: React.FC<HeaderProps> = ({ onNavigate, onOpenHowItWorks }) => {
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   return (
-    <header className="h-16 sticky top-0 z-30 bg-[#0b0f19]/80 backdrop-blur-2xl border-b border-slate-800/80 px-6 flex items-center justify-between transition-colors">
-      {/* Page Title */}
-      <div className="flex items-center gap-3">
-        <h1 className="text-xl font-extrabold tracking-tight text-white capitalize">
-          {pageTitle}
-        </h1>
-      </div>
-
-      {/* Center Blank Space: Live Real-Time Date & Clock in White Text */}
-      <div className="hidden lg:flex items-center gap-2.5 px-4 py-1.5 bg-slate-900/90 border border-slate-700/60 rounded-xl shadow-inner">
-        <div className="flex items-center gap-1.5 text-white font-bold text-xs sm:text-sm tracking-wide">
-          <CalendarIcon className="w-4 h-4 text-indigo-400" />
-          <span>{dateString}</span>
-        </div>
-        <span className="text-slate-600 font-bold">•</span>
-        <div className="flex items-center gap-1.5 text-white font-extrabold text-xs sm:text-sm font-mono tracking-wider">
-          <Clock className="w-4 h-4 text-emerald-400 animate-pulse" />
-          <span>{timeString}</span>
-        </div>
-      </div>
-
-      {/* Action Bar */}
-      <div className="flex items-center gap-3">
-        {/* Quick Record Payment CTA */}
-        <button
-          onClick={onOpenRecordPayment}
-          className="hidden md:flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm rounded-xl shadow-lg shadow-emerald-600/25 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+    <header className="sticky top-0 z-50 h-[80px] w-full bg-[#f2f2f2]/90 backdrop-blur-[12px] border-b border-[#1e1e1e]/10 transition-all duration-300 animate-opening-header relative overflow-hidden">
+      {/* Opening Light Sweep Beam */}
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#111111]/40 to-transparent -translate-x-full animate-[shimmerPass_2.5s_ease-in-out_infinite]" />
+      
+      <div className="max-w-7xl mx-auto h-full px-6 flex items-center justify-between">
+        
+        {/* Brand Title */}
+        <button 
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="flex items-center gap-3 text-left group cursor-pointer"
         >
-          <DollarSign className="w-4 h-4" />
-          <span>Record Payment</span>
-        </button>
-
-        {/* Quick Add Customer CTA */}
-        <button
-          onClick={onOpenAddCustomer}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs sm:text-sm rounded-xl shadow-lg shadow-indigo-600/25 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add Customer</span>
-        </button>
-
-        {/* Notification Bell Drawer */}
-        <button
-          onClick={toggleDrawer}
-          className="relative p-2.5 text-slate-400 hover:text-indigo-400 bg-slate-900/80 hover:bg-slate-800 border border-slate-700/60 rounded-xl transition-colors cursor-pointer"
-          title="Notifications"
-        >
-          <Bell className="w-4 h-4" />
-          {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 text-white font-bold text-[10px] rounded-full flex items-center justify-center ring-2 ring-slate-900 animate-pulse">
-              {unreadCount > 9 ? '9+' : unreadCount}
+          <LiveAnalogClock size={40} />
+          <div>
+            <span className="font-clash font-bold text-xl sm:text-2xl text-[#111111] tracking-tight block leading-none">
+              TIMESYNC
             </span>
-          )}
+            <span className="font-satoshi font-bold text-xs tracking-[0.2em] text-[#838282] uppercase block mt-1">
+              MEETING PLANNER
+            </span>
+          </div>
         </button>
+
+        {/* Navigation Links */}
+        <nav className="hidden md:flex items-center gap-8 text-xs font-satoshi font-bold tracking-[0.15em] uppercase text-[#111111]">
+          <button
+            onClick={() => scrollToSection('planner')}
+            className="hover:text-[#838282] transition-colors duration-[120ms] py-2"
+          >
+            PLANNER
+          </button>
+          <span className="text-[#b6b5b5] font-light">|</span>
+          <button
+            onClick={onOpenHowItWorks}
+            className="hover:text-[#838282] transition-colors duration-[120ms] py-2"
+          >
+            HOW IT WORKS
+          </button>
+          <span className="text-[#b6b5b5] font-light">|</span>
+          <button
+            onClick={() => scrollToSection('timezones-grid')}
+            className="hover:text-[#838282] transition-colors duration-[120ms] py-2"
+          >
+            TIME ZONES
+          </button>
+        </nav>
+
+        {/* Pill Button CTA */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => scrollToSection('planner')}
+            className="px-6 py-2.5 rounded-full border border-[#1e1e1e] text-xs font-satoshi font-bold tracking-[0.12em] uppercase text-[#1e1e1e] bg-transparent hover:bg-[#1e1e1e] hover:text-[#ffffff] transition-all duration-[120ms] shadow-sm"
+          >
+            PLAN A MEETING
+          </button>
+        </div>
+
       </div>
     </header>
   );
