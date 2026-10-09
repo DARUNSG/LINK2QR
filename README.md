@@ -58,3 +58,4 @@ npm start
 - **Frontend**: React 19, TypeScript, Vite, Tailwind CSS, Dexie.js, Recharts, Framer Motion, jsPDF
 - **Backend**: Node.js, Express.js, Firebase Admin SDK, Firebase Realtime Database
 - **Persistence**: Browser LocalStorage & Local IndexedDB fallback
+
