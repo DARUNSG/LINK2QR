@@ -1,179 +1,119 @@
 import React from 'react';
-import { Clock, Globe, Mail, Shield, ArrowUpRight, Phone, Send } from 'lucide-react';
+import { QrCode, ArrowUp } from 'lucide-react';
 
 interface FooterProps {
-  onOpenHowItWorks: () => void;
+  onScrollToSection: (id: string) => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onOpenHowItWorks }) => {
-  const scrollToTop = () => {
+export const Footer: React.FC<FooterProps> = ({ onScrollToSection }) => {
+  const currentYear = new Date().getFullYear();
+
+  const handleScrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const scrollToSection = (id: string) => {
-    const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
-  };
-
   return (
-    <footer className="w-full bg-[#1e1e1e] text-[#f6f6f6] border-t border-white/5 pt-16 pb-12 px-6">
-      <div className="max-w-7xl mx-auto">
+    <footer className="bg-[#0B0B0F] border-t border-[#DBEAFE]/15 text-[#EDE9FE] py-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        {/* 4-Column Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10 pb-12 border-b border-white/10">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-10 pb-12 border-b border-[#DBEAFE]/10">
           
-          {/* Column 1: Brand Summary */}
-          <div className="space-y-4">
+          {/* Brand & Description (6 cols) */}
+          <div className="md:col-span-6 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 border border-white/30 flex items-center justify-center bg-white text-[#1e1e1e]">
-                <Clock className="w-4 h-4 stroke-[2]" />
+              <div className="w-10 h-10 rounded-xl bg-[#DBEAFE] flex items-center justify-center text-[#0B0B0F] shadow-sm">
+                <QrCode className="w-6 h-6" />
               </div>
-              <span className="font-clash font-bold text-lg text-[#f6f6f6] tracking-tight uppercase">
-                TIMESYNC PLANNER
+              <span className="font-extrabold text-2xl tracking-tight text-[#DBEAFE]">
+                Link<span className="text-[#EDE9FE]">2</span>QR
               </span>
             </div>
 
-            <p className="font-satoshi text-xs text-[#f6f6f6]/60 leading-relaxed max-w-xs">
-              “Find a time that works across the world.”
-              Sophisticated, luxury-brutalist editorial meeting overlap engine.
+            <p className="text-sm text-[#EDE9FE]/80 max-w-sm leading-relaxed">
+              Simple, high-speed, client-side QR code generator. Convert any web link into customizable, scannable PNG codes without signups or tracking.
             </p>
 
-            <div className="text-[10px] font-mono text-[#f6f6f6]/40 uppercase pt-2">
-              BUILD 2026.09 • IANA TIMEZONE DATABASE
+            {/* Subtle decorative color chip representation */}
+            <div className="flex items-center gap-2 pt-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#5D4037]">
+                Color Harmony:
+              </span>
+              <span className="w-3 h-3 rounded-full bg-[#DBEAFE]" title="#DBEAFE" />
+              <span className="w-3 h-3 rounded-full bg-[#EDE9FE]" title="#EDE9FE" />
+              <span className="w-3 h-3 rounded-full bg-[#FCE7F3]" title="#FCE7F3" />
+              <span className="w-3 h-3 rounded-full bg-[#5D4037]" title="#5D4037" />
             </div>
           </div>
 
-          {/* Column 2: Navigation */}
-          <div>
-            <h4 className="font-clash font-bold text-xs uppercase tracking-[0.2em] text-[#f6f6f6] mb-4">
-              NAVIGATION
+          {/* Quick Links (3 cols) */}
+          <div className="md:col-span-3 space-y-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#DBEAFE]">
+              Navigation
             </h4>
-            <ul className="space-y-2.5 text-xs font-satoshi text-[#f6f6f6]/60">
+            <ul className="space-y-2 text-sm">
               <li>
                 <button
-                  onClick={() => scrollToSection('planner')}
-                  className="hover:text-[#f6f6f6] transition-colors"
+                  type="button"
+                  onClick={() => onScrollToSection('home')}
+                  className="text-[#EDE9FE]/75 hover:text-[#DBEAFE] transition-colors cursor-pointer"
                 >
-                  Planner Section
+                  Home
                 </button>
               </li>
               <li>
                 <button
-                  onClick={() => scrollToSection('timezones-grid')}
-                  className="hover:text-[#f6f6f6] transition-colors"
-                >
-                  Time Zones Architecture
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={onOpenHowItWorks}
-                  className="hover:text-[#f6f6f6] transition-colors"
+                  type="button"
+                  onClick={() => onScrollToSection('how-it-works')}
+                  className="text-[#EDE9FE]/75 hover:text-[#DBEAFE] transition-colors cursor-pointer"
                 >
                   How It Works
                 </button>
               </li>
               <li>
                 <button
-                  onClick={scrollToTop}
-                  className="hover:text-[#f6f6f6] transition-colors inline-flex items-center gap-1"
+                  type="button"
+                  onClick={() => onScrollToSection('features')}
+                  className="text-[#EDE9FE]/75 hover:text-[#DBEAFE] transition-colors cursor-pointer"
                 >
-                  <span>Back to Top</span>
-                  <ArrowUpRight className="w-3 h-3" />
+                  Features
                 </button>
               </li>
             </ul>
           </div>
 
-          {/* Column 3: Information */}
-          <div>
-            <h4 className="font-clash font-bold text-xs uppercase tracking-[0.2em] text-[#f6f6f6] mb-4">
-              INFORMATION
+          {/* Utilities & Controls (3 cols) */}
+          <div className="md:col-span-3 space-y-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#DBEAFE]">
+              Tools & Formats
             </h4>
-            <ul className="space-y-2.5 text-xs font-satoshi text-[#f6f6f6]/60">
-              <li className="flex items-center gap-2">
-                <Globe className="w-3.5 h-3.5 opacity-60" />
-                <span>IANA Database Standard</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Shield className="w-3.5 h-3.5 opacity-60" />
-                <span>DST Dynamic Adjustment</span>
-              </li>
-              <li>
-                <span>No Hardcoded Calculation</span>
-              </li>
-              <li>
-                <span>Editorial Minimalist Aesthetics</span>
-              </li>
+            <ul className="space-y-2 text-sm text-[#EDE9FE]/75">
+              <li>High-Resolution PNG</li>
+              <li>Client-Side Canvas Engine</li>
+              <li>Contrast Analysis</li>
+              <li>Dynamic Dimension Presets</li>
             </ul>
-          </div>
 
-          {/* Column 4: Contact & Support Information */}
-          <div className="space-y-4">
-            <h4 className="font-clash font-bold text-xs uppercase tracking-[0.2em] text-[#f6f6f6] mb-3">
-              CONTACT INFORMATION
-            </h4>
-            <p className="text-xs font-satoshi text-[#f6f6f6]/60 leading-relaxed">
-              Have questions or feedback about global meeting scheduling? Reach out directly:
-            </p>
-            
-            <div className="space-y-3 pt-1 text-xs font-satoshi">
-              {/* Email Address Link with Login/Mailto trigger */}
-              <a
-                href="mailto:darundarun6767@gmail.com?subject=Inquiry%20from%20TimeSync%20Meeting%20Planner"
-                className="flex items-center gap-3 text-[#f6f6f6]/80 hover:text-emerald-400 transition-colors group"
-                title="Click to log into your email app and send mail"
-              >
-                <div className="p-2 border border-white/20 group-hover:border-emerald-400 group-hover:bg-emerald-500/10 transition-colors shrink-0">
-                  <Mail className="w-4 h-4 text-emerald-400" />
-                </div>
-                <div className="overflow-hidden">
-                  <span className="text-[10px] font-mono text-[#f6f6f6]/40 uppercase block">EMAIL ADDRESS</span>
-                  <span className="font-mono text-xs text-white underline decoration-white/30 underline-offset-4 group-hover:decoration-emerald-400 truncate block">
-                    darundarun6767@gmail.com
-                  </span>
-                </div>
-              </a>
-
-              {/* Contact Phone Number Link */}
-              <a
-                href="tel:+918838256709"
-                className="flex items-center gap-3 text-[#f6f6f6]/80 hover:text-emerald-400 transition-colors group"
-                title="Click to call or message"
-              >
-                <div className="p-2 border border-white/20 group-hover:border-emerald-400 group-hover:bg-emerald-500/10 transition-colors shrink-0">
-                  <Phone className="w-4 h-4 text-emerald-400" />
-                </div>
-                <div>
-                  <span className="text-[10px] font-mono text-[#f6f6f6]/40 uppercase block">CONTACT NUMBER</span>
-                  <span className="font-mono text-xs text-white tracking-wider block">
-                    +91 8838256709
-                  </span>
-                </div>
-              </a>
-            </div>
-
-            {/* Quick Gmail Web Compose Link */}
             <div className="pt-2">
-              <a
-                href="https://mail.google.com/mail/?view=cm&fs=1&to=darundarun6767@gmail.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-3 py-2 bg-[#111111] hover:bg-emerald-600 text-white border border-white/20 hover:border-emerald-400 text-[11px] font-mono font-bold tracking-wider uppercase transition-all duration-300 rounded shadow-md group"
-                title="Log in to Gmail and send email directly"
+              <button
+                type="button"
+                onClick={handleScrollToTop}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#EDE9FE]/10 hover:bg-[#EDE9FE]/20 text-[#DBEAFE] transition-all cursor-pointer"
               >
-                <Send className="w-3.5 h-3.5 text-emerald-400 group-hover:text-white transition-colors" />
-                <span>LOG IN & MAIL ME</span>
-              </a>
+                <span>Back to Top</span>
+                <ArrowUp className="w-3 h-3" />
+              </button>
             </div>
           </div>
 
         </div>
 
-        {/* Bottom Rights Notice */}
-        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] font-satoshi text-[#f6f6f6]/40 uppercase">
-          <span>© 2026 TIMESYNC MEETING PLANNER. ALL RIGHTS RESERVED.</span>
-          <span>EDITORIAL LUXURY BRUTALISM SYSTEM</span>
+        {/* Bottom bar with copyright */}
+        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-[#EDE9FE]/60 gap-4">
+          <p>© {currentYear} Link2QR. All rights reserved. Free and open client utility.</p>
+          <div className="flex items-center gap-3">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#5D4037]" />
+            <span className="text-[#EDE9FE]/70">Strict Privacy Guarantee • No Server Uploads</span>
+          </div>
         </div>
 
       </div>

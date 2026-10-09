@@ -18,21 +18,21 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, onOpenHowItWorks }) 
     <header className="sticky top-0 z-50 h-[80px] w-full bg-[#f2f2f2]/90 backdrop-blur-[12px] border-b border-[#1e1e1e]/10 transition-all duration-300 animate-opening-header relative overflow-hidden">
       {/* Opening Light Sweep Beam */}
       <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#111111]/40 to-transparent -translate-x-full animate-[shimmerPass_2.5s_ease-in-out_infinite]" />
-      
+
       <div className="max-w-7xl mx-auto h-full px-6 flex items-center justify-between">
-        
+
         {/* Brand Title */}
-        <button 
+        <button
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           className="flex items-center gap-3 text-left group cursor-pointer"
         >
           <LiveAnalogClock size={40} />
           <div>
             <span className="font-clash font-bold text-xl sm:text-2xl text-[#111111] tracking-tight block leading-none">
-              TIMESYNC
+              TIME SYNC
             </span>
             <span className="font-satoshi font-bold text-xs tracking-[0.2em] text-[#838282] uppercase block mt-1">
-              MEETING PLANNER
+              PLAN YOUR MEETINGS
             </span>
           </div>
         </button>
